@@ -1,0 +1,4 @@
+image:
+  repository: github-repo-watcher
+  tag: latest
+  pullPolicy: Never
