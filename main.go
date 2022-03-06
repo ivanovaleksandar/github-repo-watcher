@@ -128,8 +128,9 @@ func main() {
 	user := os.Getenv("GITHUB_USERNAME")
 	checkInterval, _ := strconv.Atoi(os.Getenv("CHECK_INTERVAL"))
 	interval := time.Duration(checkInterval) * time.Second
+	dbPath := os.Getenv("DB_PATH") + "/repos.db"
 
-	db, err := bolt.Open("repos.db", 0600, nil)
+	db, err := bolt.Open(dbPath, 0600, nil)
 	if err != nil {
 		log.Fatal(err)
 	}

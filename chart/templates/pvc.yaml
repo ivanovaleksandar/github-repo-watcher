@@ -1,0 +1,14 @@
+
+{{- if .Values.dbStorage }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "github-repo-watcher.fullname" . }}
+spec:
+  storageClassName: standard
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Mi
+{{- end }}  

@@ -15,7 +15,8 @@ fullnameOverride: ""
 githubUser: ivanovaleksandar
 # Interval for checking repositories of user in seconds
 intervalForChecking: 300  
-
+dbPath: /tmp/db
+dbStorage: false
 
 serviceAccount:
   # Specifies whether a service account should be created

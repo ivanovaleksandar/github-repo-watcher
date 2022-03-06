@@ -32,6 +32,8 @@ spec:
               value: {{ .Values.githubUser }}
             - name: CHECK_INTERVAL
               value: {{ .Values.intervalForChecking | quote }} 
+            - name: DB_PATH
+              value: {{ .Values.dbPath }} 
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
@@ -42,6 +44,11 @@ spec:
               protocol: TCP
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          {{- if .Values.dbStorage }}
+          volumeMounts:
+          - name: db-storage
+            mountPath: {{ .Values.dbPath }}
+          {{- end }}  
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -54,3 +61,9 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if .Values.dbStorage }}
+      volumes:
+        - name: db-storage
+          persistentVolumeClaim:
+            claimName: {{ include "github-repo-watcher.fullname" . }}
+      {{- end }}        
