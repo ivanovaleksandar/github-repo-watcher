@@ -2,17 +2,24 @@ package main
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
 	bolt "go.etcd.io/bbolt"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+type User struct {
+	User        string `json:"login"`
+	PublicRepos int    `json:"public_repos"`
+}
 type Repo struct {
 	FullName  string `json:"full_name"`
 	CreatedAt string `json:"created_at"`
@@ -55,6 +62,32 @@ func getAllRepos(user string) Repos {
 	return totalResults
 }
 
+// Returns number of repositories for user
+func getNumberOfRepos(user string) int {
+	githubRepoUrl := "https://api.github.com/users/" + user
+
+	var u User
+	res, err := http.Get(githubRepoUrl)
+	if err != nil {
+		log.Fatal(err)
+	}
+	body, err := ioutil.ReadAll(res.Body)
+	defer res.Body.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if res.StatusCode != 200 {
+		log.Fatal(res.StatusCode)
+	}
+	err = json.Unmarshal([]byte(body), &u)
+	if err != nil {
+		log.Fatal(err)
+	}
+	numberOfRepos.Add(float64(u.PublicRepos))
+
+	return u.PublicRepos
+}
+
 // Saves new repository in the form of 'full_name' as key and 'created_at' as a value
 // Also, notifies if there is a repo created
 func (repo *Repo) saveRepo(db *bolt.DB, bucketName string) error {
@@ -83,10 +116,18 @@ func (repo *Repo) notify() error {
 	return nil
 }
 
+var (
+	numberOfRepos = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "number_of_github_repos",
+			Help: "Number of repositories for user",
+		})
+)
+
 func main() {
-	user := flag.String("u", "", "GitHub username")
-	interval := time.Duration(*flag.Int("i", 20, "Interval for checking in seconds")) * time.Second
-	flag.Parse()
+	user := os.Getenv("GITHUB_USERNAME")
+	checkInterval, _ := strconv.Atoi(os.Getenv("CHECK_INTERVAL"))
+	interval := time.Duration(checkInterval) * time.Second
 
 	db, err := bolt.Open("repos.db", 0600, nil)
 	if err != nil {
@@ -94,7 +135,7 @@ func main() {
 	}
 	defer db.Close()
 
-	bucketName := *user
+	bucketName := user
 	err = db.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucketIfNotExists([]byte(bucketName))
 		if err != nil {
@@ -106,20 +147,28 @@ func main() {
 		log.Fatal(err)
 	}
 
-	quit := make(chan bool)
+	go func() {
+		quit := make(chan bool)
 
-repoCheck:
-	for {
-		select {
-		case <-quit:
-			break repoCheck
-		default:
-			repos := getAllRepos(*user)
+	repoCheck:
+		for {
+			select {
+			case <-quit:
+				break repoCheck
+			default:
+				getNumberOfRepos(user)
+				repos := getAllRepos(user)
 
-			for _, r := range repos {
-				r.saveRepo(db, bucketName)
+				for _, r := range repos {
+					r.saveRepo(db, bucketName)
+				}
 			}
+			time.Sleep(interval)
 		}
-		time.Sleep(interval)
-	}
+	}()
+
+	http.Handle("/metrics", promhttp.Handler())
+	prometheus.MustRegister(numberOfRepos)
+
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
