@@ -11,7 +11,7 @@ go build
 chmod +x github-repo-watcher
 ```
 
-## Run
+## Usage
 
 Before running it keep in mind that the following parameters can be changed:
 ```
@@ -22,6 +22,8 @@ CHECK_INTERVAL=300
 # Directory of db data
 DB_PATH=/tmp/db
 ```
+
+## Run
 
 ### Local
 
@@ -35,6 +37,7 @@ export DB_PATH=/tmp/db
 
 ### Dockerfile 
 
+Deploying with docker
 ```
 docker build -t github-repo-watcher .
 docker run -e GITHUB_USERNAME=<user> -e CHECK_INTERVAL=300 -e DB_PATH=/tmp/db -p 8080:8080 -v $(pwd)/db/:/tmp/db github-repo-watcher 
@@ -42,10 +45,18 @@ docker run -e GITHUB_USERNAME=<user> -e CHECK_INTERVAL=300 -e DB_PATH=/tmp/db -p
 
 ### Helm 
 
+Deploying the chart 
+```
+helm install my-deploy chart/ 
+```
+
+Deploying locally for testing (using [kind](https://kind.sigs.k8s.io/))
 ```
 kind create cluster --config kind.yaml
+kind load docker-image github-repo-watcher 
 helm install my-deploy chart/ -f chart/values.local.yaml
-kubectl port-forward pod/<pod-name> 8080:8080
+kubectl port-forward pod/<pod-name> 8080:8080 &
+kubectl logs -f <pod-name>
 ```
 
 # To Do
@@ -53,3 +64,4 @@ kubectl port-forward pod/<pod-name> 8080:8080
 - [x] Helm chart
 - [ ] Option for using authenticated calls in GitHub (to not be rate limitted immediatelly) 
 - [ ] Watch for deleted repos as well
+- [ ] Use flags instead of env vars
