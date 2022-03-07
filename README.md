@@ -47,3 +47,9 @@ kind create cluster --config kind.yaml
 helm install my-deploy chart/ -f chart/values.local.yaml
 kubectl port-forward pod/<pod-name> 8080:8080
 ```
+
+# To Do
+
+- [x] Helm chart
+- [ ] Option for using authenticated calls in GitHub (to not be rate limitted immediatelly) 
+- [ ] Watch for deleted repos as well
